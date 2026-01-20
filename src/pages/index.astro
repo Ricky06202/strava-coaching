@@ -1,11 +1,46 @@
 ---
-import Welcome from '../components/Welcome.astro';
-import Layout from '../layouts/Layout.astro';
+import ListOfMembers from '@/components/ListOfMembers'
+import Layout from '@/layouts/Layout.astro'
+import AuthInviteButton from '@/components/AuthInviteButton'
+import { getDb } from '@/db'
+import { athletes as athletesTable } from '@/db/schema'
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+const clientId = import.meta.env.STRAVA_CLIENT_ID
+
+// Fetch athletes from D1
+// Fetch athletes from D1
+const db = getDb((Astro.locals as any).runtime?.env)
+const athletes = db ? await db.select().from(athletesTable) : []
 ---
 
-<Layout>
-	<Welcome />
+<Layout title="Strava Coaching">
+  <main class="max-w-4xl mx-auto p-8 pt-16">
+    <header
+      class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-16"
+    >
+      <div>
+        <h1 class="text-5xl font-extrabold text-gray-900 tracking-tight mb-3">
+          Panel de <span class="text-orange-600">Coaching</span>
+        </h1>
+        <p class="text-lg text-gray-600 max-w-lg">
+          Gestiona a tus alumnos y monitorea sus actividades de Strava en tiempo
+          real.
+        </p>
+      </div>
+      <AuthInviteButton clientId={clientId} client:load />
+    </header>
+
+    <section>
+      <div class="flex items-center justify-between mb-8">
+        <h2 class="text-3xl font-bold text-gray-800">Tus Alumnos</h2>
+        <span
+          class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-medium"
+        >
+          {athletes.length}
+          {athletes.length === 1 ? 'Alumno' : 'Alumnos'}
+        </span>
+      </div>
+      <ListOfMembers athletes={athletes} />
+    </section>
+  </main>
 </Layout>

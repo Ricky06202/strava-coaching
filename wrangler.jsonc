@@ -1,0 +1,21 @@
+{
+  "main": "dist/_worker.js/index.js",
+  "name": "strava-coaching",
+  "compatibility_date": "2026-01-20",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist",
+  },
+  "observability": {
+    "enabled": true,
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "strava-db",
+      "database_id": "7052aef0-2040-485a-b57e-822b589b6709",
+      "remote": true,
+    },
+  ],
+}
