@@ -108,6 +108,18 @@ export default function PerformanceModal({
 
   if (!isOpen) return null
 
+  // Helper to format YYYY-MM-DD strings without timezone shift
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return ''
+    // If it's just YYYY-MM-DD, parse manually to avoid UTC shift
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [year, month, day] = dateStr.split('-').map(Number)
+      return new Date(year, month - 1, day).toLocaleDateString()
+    }
+    // Fallback for full ISO strings
+    return new Date(dateStr).toLocaleDateString()
+  }
+
   // Helper to determine TSB color
   const getTsbColor = (tsb: number) => {
     if (tsb > 20) return 'text-orange-500' // Too rested?
@@ -321,7 +333,7 @@ export default function PerformanceModal({
                                   desde
                                 </span>
                                 <span className="text-orange-600 font-medium">
-                                  {new Date(entry.date).toLocaleDateString()}
+                                  {formatDate(entry.date)}
                                 </span>
                               </div>
                               <button
@@ -358,8 +370,7 @@ export default function PerformanceModal({
               <div className="flex justify-between items-center text-xs text-gray-400 pt-4 border-t border-gray-100">
                 <span>Basado en {metrics.activityCount} actividades</span>
                 <span>
-                  Último entreno:{' '}
-                  {new Date(metrics.lastActivityDate).toLocaleDateString()}
+                  Último entreno: {formatDate(metrics.lastActivityDate)}
                 </span>
               </div>
             </div>
