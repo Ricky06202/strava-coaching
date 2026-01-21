@@ -9,7 +9,7 @@ const runtime = (Astro.locals as any).runtime
 const clientId =
   import.meta.env.STRAVA_CLIENT_ID || runtime?.env?.STRAVA_CLIENT_ID
 
-// Fetch athletes from D1
+// Fetch athletes from D1 a
 // Fetch athletes from D1
 const db = getDb((Astro.locals as any).runtime?.env)
 const athletes = db ? await db.select().from(athletesTable) : []
