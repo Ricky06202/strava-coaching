@@ -16,8 +16,15 @@ export const GET: APIRoute = async ({ url, redirect, locals }) => {
   }
 
   try {
-    const clientId = import.meta.env.STRAVA_CLIENT_ID
-    const clientSecret = import.meta.env.STRAVA_CLIENT_SECRET
+    const runtime = (locals as any).runtime
+    const clientId =
+      import.meta.env.STRAVA_CLIENT_ID || runtime?.env?.STRAVA_CLIENT_ID
+    const clientSecret =
+      import.meta.env.STRAVA_CLIENT_SECRET || runtime?.env?.STRAVA_CLIENT_SECRET
+
+    if (!clientId || !clientSecret) {
+      throw new Error('Missing Strava credentials')
+    }
 
     const response = await fetch('https://www.strava.com/oauth/token', {
       method: 'POST',
