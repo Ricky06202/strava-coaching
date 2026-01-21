@@ -6,15 +6,19 @@ interface Props {
     firstname: string | null
     lastname: string | null
   }
+  onClick?: () => void
 }
 
-export default function MemberCard({ athlete }: Props) {
+export default function MemberCard({ athlete, onClick }: Props) {
   const fullName =
     `${athlete.firstname ?? ''} ${athlete.lastname ?? ''}`.trim() ||
     'Alumno Strava'
 
   return (
-    <div className="flex gap-2 items-center w-64 h-20 bg-white shadow-sm overflow-hidden rounded-2xl border border-gray-100 hover:border-orange-200 hover:shadow-md transition-all cursor-pointer">
+    <div
+      onClick={onClick}
+      className="flex gap-2 items-center w-64 h-20 bg-white shadow-sm overflow-hidden rounded-2xl border border-gray-100 hover:border-orange-200 hover:shadow-md transition-all cursor-pointer"
+    >
       <div className="w-20 h-20 bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-xl">
         {athlete.firstname?.[0] || 'S'}
       </div>

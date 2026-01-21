@@ -42,7 +42,7 @@ const athletes = db ? await db.select().from(athletesTable) : []
           {athletes.length === 1 ? 'Alumno' : 'Alumnos'}
         </span>
       </div>
-      <ListOfMembers athletes={athletes} />
+      <ListOfMembers client:load athletes={athletes} />
     </section>
   </main>
 </Layout>
