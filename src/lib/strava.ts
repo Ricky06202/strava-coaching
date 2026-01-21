@@ -56,10 +56,13 @@ export async function getValidAccessToken(athleteId: number, env: any) {
   return athlete.accessToken
 }
 
-export async function getAthleteHistory(accessToken: string) {
-  // Get date 60 days ago
+export async function getAthleteHistory(
+  accessToken: string,
+  days: number = 60,
+) {
+  // Get date X days ago
   const dateOffset = new Date()
-  dateOffset.setDate(dateOffset.getDate() - 60)
+  dateOffset.setDate(dateOffset.getDate() - days)
   const after = Math.floor(dateOffset.getTime() / 1000)
 
   const response = await fetch(
@@ -120,10 +123,10 @@ export function calculatePerformanceMetrics(
     }
 
     // Suffer Score is Strava's Relative Effort (Heart Rate based)
-    if (act.suffer_score) return act.suffer_score
+    if (act.suffer_score) return Math.round(act.suffer_score)
     // Fallback estimation
     const hours = act.moving_time / 3600
-    return hours * 50
+    return Math.round(hours * 50)
   }
 
   // Iterate through all activities to build up the moving average
@@ -150,6 +153,101 @@ export function calculatePerformanceMetrics(
     lastActivityDate: sortedActivities[sortedActivities.length - 1].start_date,
     activityCount: sortedActivities.length,
   }
+}
+
+export function calculatePerformanceTimeSeries(
+  activities: any[],
+  days: number = 365,
+  metricPreference: 'heart_rate' | 'power' = 'heart_rate',
+  ftpHistory: { ftp: number; date: string }[] = [],
+) {
+  const ctlTimeConstant = 42
+  const atlTimeConstant = 7
+
+  // 1. Sort activities and group by date
+  const activityMap: Record<string, number> = {}
+
+  const getLoad = (act: any) => {
+    if (
+      metricPreference === 'power' &&
+      (act.device_watts || act.has_weighted_average_power)
+    ) {
+      const activityDate = new Date(act.start_date).toISOString().split('T')[0]
+      const sortedHistory = [...ftpHistory].sort((a, b) =>
+        b.date.localeCompare(a.date),
+      )
+      const athleteFtp =
+        sortedHistory.find((h) => h.date <= activityDate)?.ftp || 200
+
+      const np = act.weighted_average_watts || act.average_watts || 0
+      const intensityFactor = np / athleteFtp
+      const tss = (act.moving_time * np * intensityFactor) / (athleteFtp * 36)
+      return Math.round(tss)
+    }
+    if (act.suffer_score) return Math.round(act.suffer_score)
+    const hours = act.moving_time / 3600
+    return Math.round(hours * 50)
+  }
+
+  activities.forEach((act) => {
+    const dateStr = new Date(act.start_date).toISOString().split('T')[0]
+    const load = getLoad(act)
+    activityMap[dateStr] = (activityMap[dateStr] || 0) + load
+  })
+
+  // 2. Generate time series
+  const data = []
+  let ctl = 0
+  let atl = 0
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const startDate = new Date(today)
+  startDate.setDate(startDate.getDate() - days)
+
+  // Seed initial values if we have data before the start date?
+  // For simplicity, we start from 0 or the first activity load if it's before start.
+  // Actually, let's just process from the very first activity we have,
+  // but only return the requested range.
+
+  const firstActivityDate =
+    activities.length > 0 ? new Date(activities[0].start_date) : startDate
+
+  const processingStart =
+    firstActivityDate < startDate ? firstActivityDate : startDate
+  processingStart.setHours(0, 0, 0, 0)
+
+  const sortedFtpHistory = [...ftpHistory].sort((a, b) =>
+    b.date.localeCompare(a.date),
+  )
+
+  for (
+    let d = new Date(processingStart);
+    d <= today;
+    d.setDate(d.getDate() + 1)
+  ) {
+    const dateStr = d.toISOString().split('T')[0]
+    const load = activityMap[dateStr] || 0
+
+    // EWMA Formula
+    ctl = ctl + (load - ctl) * (1 / ctlTimeConstant)
+    atl = atl + (load - atl) * (1 / atlTimeConstant)
+
+    if (d >= startDate) {
+      const currentFtp =
+        sortedFtpHistory.find((h) => h.date <= dateStr)?.ftp || 200
+      data.push({
+        date: dateStr,
+        ctl: Math.round(ctl),
+        atl: Math.round(atl),
+        tsb: Math.round(ctl - atl),
+        tss: load,
+        ftp: currentFtp,
+      })
+    }
+  }
+
+  return data
 }
 
 export async function getLatestActivity(accessToken: string) {

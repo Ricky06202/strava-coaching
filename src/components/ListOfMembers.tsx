@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import MemberCard from './MemberCard'
 import PerformanceModal from './PerformanceModal'
+import HistoryModal from './HistoryModal'
 
 interface Props {
   athletes: any[]
@@ -9,6 +10,7 @@ interface Props {
 export default function ListOfMembers({ athletes }: Props) {
   const [performanceMetrics, setPerformanceMetrics] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [selectedAthleteName, setSelectedAthleteName] = useState('')
   const [selectedAthleteId, setSelectedAthleteId] = useState<number | null>(
@@ -38,6 +40,12 @@ export default function ListOfMembers({ athletes }: Props) {
     await fetchMetrics(athlete.id)
   }
 
+  const handleGraphClick = (athlete: any) => {
+    setSelectedAthleteName(`${athlete.firstname} ${athlete.lastname}`)
+    setSelectedAthleteId(athlete.id)
+    setIsHistoryOpen(true)
+  }
+
   if (athletes.length === 0) {
     return (
       <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
@@ -50,12 +58,13 @@ export default function ListOfMembers({ athletes }: Props) {
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
         {athletes.map((athlete) => (
           <MemberCard
             key={athlete.id}
             athlete={athlete}
             onClick={() => handleAthleteClick(athlete)}
+            onGraphClick={() => handleGraphClick(athlete)}
           />
         ))}
       </div>
@@ -68,6 +77,13 @@ export default function ListOfMembers({ athletes }: Props) {
         athleteName={selectedAthleteName}
         athleteId={selectedAthleteId}
         onRefresh={() => selectedAthleteId && fetchMetrics(selectedAthleteId)}
+      />
+
+      <HistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        athleteName={selectedAthleteName}
+        athleteId={selectedAthleteId}
       />
     </>
   )
