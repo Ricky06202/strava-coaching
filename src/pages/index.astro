@@ -5,7 +5,9 @@ import AuthInviteButton from '@/components/AuthInviteButton'
 import { getDb } from '@/db'
 import { athletes as athletesTable } from '@/db/schema'
 
-const clientId = import.meta.env.STRAVA_CLIENT_ID
+const runtime = (Astro.locals as any).runtime
+const clientId =
+  import.meta.env.STRAVA_CLIENT_ID || runtime?.env?.STRAVA_CLIENT_ID
 
 // Fetch athletes from D1
 // Fetch athletes from D1
