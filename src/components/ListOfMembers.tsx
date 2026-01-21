@@ -11,16 +11,14 @@ export default function ListOfMembers({ athletes }: Props) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [selectedAthleteName, setSelectedAthleteName] = useState('')
+  const [selectedAthleteId, setSelectedAthleteId] = useState<number | null>(
+    null,
+  )
 
-  const handleAthleteClick = async (athlete: any) => {
-    setSelectedAthleteName(`${athlete.firstname} ${athlete.lastname}`)
+  const fetchMetrics = async (athleteId: number) => {
     setIsLoading(true)
-    setIsModalOpen(true)
-    setPerformanceMetrics(null)
-
     try {
-      // Call the new performance endpoint
-      const response = await fetch(`/api/athlete/${athlete.id}/performance`)
+      const response = await fetch(`/api/athlete/${athleteId}/performance`)
       if (response.ok) {
         const data = await response.json()
         setPerformanceMetrics(data)
@@ -30,6 +28,14 @@ export default function ListOfMembers({ athletes }: Props) {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleAthleteClick = async (athlete: any) => {
+    setSelectedAthleteName(`${athlete.firstname} ${athlete.lastname}`)
+    setSelectedAthleteId(athlete.id)
+    setIsModalOpen(true)
+    setPerformanceMetrics(null)
+    await fetchMetrics(athlete.id)
   }
 
   if (athletes.length === 0) {
@@ -60,6 +66,8 @@ export default function ListOfMembers({ athletes }: Props) {
         metrics={performanceMetrics}
         isLoading={isLoading}
         athleteName={selectedAthleteName}
+        athleteId={selectedAthleteId}
+        onRefresh={() => selectedAthleteId && fetchMetrics(selectedAthleteId)}
       />
     </>
   )

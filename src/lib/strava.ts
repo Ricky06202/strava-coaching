@@ -79,7 +79,11 @@ export async function getAthleteHistory(accessToken: string) {
   return activities
 }
 
-export function calculatePerformanceMetrics(activities: any[]) {
+export function calculatePerformanceMetrics(
+  activities: any[],
+  metricPreference: 'heart_rate' | 'power' = 'heart_rate',
+  ftpHistory: { ftp: number; date: string }[] = [],
+) {
   // Sort by date ascending
   const sortedActivities = activities.sort(
     (a: any, b: any) =>
@@ -94,7 +98,28 @@ export function calculatePerformanceMetrics(activities: any[]) {
   // Simple TSS estimation if not present (Relative Effort or Heart Rate based)
   // Fallback: (Moving Time / 3600) * 50 (Assume moderate intensity of 50 TSS/hr if no data)
   const getLoad = (act: any) => {
-    // Suffer Score is Strava's Relative Effort
+    if (
+      metricPreference === 'power' &&
+      (act.device_watts || act.has_weighted_average_power)
+    ) {
+      // TSS = (sec * NP * IF) / (FTP * 3600) * 100
+      // NP = weighted_average_watts (Normalized Power)
+      // IF = NP / FTP
+      // Find FTP for this activity date
+      const activityDate = new Date(act.start_date).toISOString().split('T')[0]
+      const sortedHistory = [...ftpHistory].sort((a, b) =>
+        b.date.localeCompare(a.date),
+      )
+      const athleteFtp =
+        sortedHistory.find((h) => h.date <= activityDate)?.ftp || 200
+
+      const np = act.weighted_average_watts || act.average_watts || 0
+      const intensityFactor = np / athleteFtp
+      const tss = (act.moving_time * np * intensityFactor) / (athleteFtp * 36)
+      return Math.round(tss)
+    }
+
+    // Suffer Score is Strava's Relative Effort (Heart Rate based)
     if (act.suffer_score) return act.suffer_score
     // Fallback estimation
     const hours = act.moving_time / 3600

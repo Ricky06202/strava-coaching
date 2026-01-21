@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 
 interface PerformanceMetrics {
   ctl: number // Fitness
@@ -6,6 +6,8 @@ interface PerformanceMetrics {
   tsb: number // Form
   lastActivityDate: string
   activityCount: number
+  metricPreference?: string
+  ftpHistory?: { ftp: number; date: string }[]
 }
 
 interface PerformanceModalProps {
@@ -14,6 +16,8 @@ interface PerformanceModalProps {
   metrics: PerformanceMetrics | null
   isLoading: boolean
   athleteName: string
+  athleteId: number | null
+  onRefresh: () => void
 }
 
 export default function PerformanceModal({
@@ -22,7 +26,86 @@ export default function PerformanceModal({
   metrics,
   isLoading,
   athleteName,
+  athleteId,
+  onRefresh,
 }: PerformanceModalProps) {
+  const [metricPreference, setMetricPreference] = useState<
+    'heart_rate' | 'power'
+  >('heart_rate')
+  const [isSaving, setIsSaving] = useState(false)
+
+  // FTP Input State
+  const [newFtp, setNewFtp] = useState<string>('')
+  const [newFtpDate, setNewFtpDate] = useState<string>(
+    new Date().toISOString().split('T')[0],
+  )
+
+  useEffect(() => {
+    if (metrics) {
+      setMetricPreference(
+        (metrics.metricPreference as 'heart_rate' | 'power') || 'heart_rate',
+      )
+    }
+  }, [metrics])
+
+  const handleSavePreferences = async () => {
+    if (!athleteId) return
+    setIsSaving(true)
+    try {
+      const response = await fetch(`/api/athlete/${athleteId}/preferences`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metricPreference }),
+      })
+      if (response.ok) {
+        onRefresh()
+      }
+    } catch (error) {
+      console.error('Error saving preferences:', error)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleAddFtp = async () => {
+    if (!athleteId || !newFtp || !newFtpDate) return
+    setIsSaving(true)
+    try {
+      const response = await fetch(`/api/athlete/${athleteId}/ftp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ftp: parseInt(newFtp), date: newFtpDate }),
+      })
+      if (response.ok) {
+        setNewFtp('')
+        onRefresh()
+      }
+    } catch (error) {
+      console.error('Error adding FTP:', error)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDeleteFtp = async (date: string) => {
+    if (!athleteId) return
+    setIsSaving(true)
+    try {
+      const response = await fetch(`/api/athlete/${athleteId}/ftp`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date }),
+      })
+      if (response.ok) {
+        onRefresh()
+      }
+    } catch (error) {
+      console.error('Error deleting FTP:', error)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   if (!isOpen) return null
 
   // Helper to determine TSB color
@@ -119,9 +202,156 @@ export default function PerformanceModal({
                 <p className="text-gray-500 text-xs uppercase font-bold mb-1">
                   Estado Actual
                 </p>
-                <p className={`text-lg font-bold ${getTsbColor(metrics.tsb)}`}>
+                <p className={`text-lg font-bold ${getTsbStatus(metrics.tsb)}`}>
                   {getTsbStatus(metrics.tsb)}
                 </p>
+              </div>
+
+              {/* Preferences Section */}
+              <div className="bg-orange-50 rounded-lg p-4 border border-orange-100 space-y-4">
+                <p className="text-orange-800 text-xs uppercase font-bold">
+                  Configuración de Métricas
+                </p>
+
+                <div className="space-y-3">
+                  <label className="block text-xs text-orange-700 font-medium">
+                    Calcular carga usando:
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setMetricPreference('heart_rate')
+                        // Update immediately
+                        fetch(`/api/athlete/${athleteId}/preferences`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            metricPreference: 'heart_rate',
+                          }),
+                        }).then(() => onRefresh())
+                      }}
+                      className={`flex-1 py-2 px-3 text-sm font-bold rounded border transition-colors ${metricPreference === 'heart_rate' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-orange-600 border-orange-200 hover:bg-orange-50'}`}
+                    >
+                      Frecuencia Cardíaca
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMetricPreference('power')
+                        // Update immediately
+                        fetch(`/api/athlete/${athleteId}/preferences`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ metricPreference: 'power' }),
+                        }).then(() => onRefresh())
+                      }}
+                      className={`flex-1 py-2 px-3 text-sm font-bold rounded border transition-colors ${metricPreference === 'power' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-orange-600 border-orange-200 hover:bg-orange-50'}`}
+                    >
+                      Potencia (Watts)
+                    </button>
+                  </div>
+                </div>
+
+                {metricPreference === 'power' && (
+                  <div className="space-y-4 pt-4 border-t border-orange-200">
+                    <p className="text-orange-800 text-xs uppercase font-bold">
+                      Historial de FTP
+                    </p>
+
+                    {/* Add FTP Form */}
+                    <div className="flex gap-2 items-end">
+                      <div className="flex-1">
+                        <label className="block text-[10px] text-orange-700 font-bold uppercase mb-1">
+                          Nuevo FTP
+                        </label>
+                        <input
+                          type="number"
+                          value={newFtp}
+                          onChange={(e) => setNewFtp(e.target.value)}
+                          placeholder="Watts"
+                          className="w-full text-sm rounded border-orange-200 focus:ring-orange-500 focus:border-orange-500 py-1"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-[10px] text-orange-700 font-bold uppercase mb-1">
+                          Desde Fecha
+                        </label>
+                        <input
+                          type="date"
+                          value={newFtpDate}
+                          onChange={(e) => setNewFtpDate(e.target.value)}
+                          className="w-full text-sm rounded border-orange-200 focus:ring-orange-500 focus:border-orange-500 py-1"
+                        />
+                      </div>
+                      <button
+                        onClick={handleAddFtp}
+                        disabled={isSaving || !newFtp}
+                        className="bg-orange-800 text-white p-1.5 rounded hover:bg-orange-900 transition-colors disabled:opacity-50"
+                        title="Añadir FTP"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* FTP List */}
+                    <div className="max-h-32 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                      {metrics?.ftpHistory && metrics.ftpHistory.length > 0 ? (
+                        [...metrics.ftpHistory]
+                          .sort((a, b) => b.date.localeCompare(a.date))
+                          .map((entry, idx) => (
+                            <div
+                              key={idx}
+                              className="flex justify-between items-center bg-white p-2 rounded border border-orange-100 text-sm"
+                            >
+                              <div>
+                                <span className="font-bold text-gray-900">
+                                  {entry.ftp}W
+                                </span>
+                                <span className="text-gray-400 mx-2 text-xs">
+                                  desde
+                                </span>
+                                <span className="text-orange-600 font-medium">
+                                  {new Date(entry.date).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => handleDeleteFtp(entry.date)}
+                                className="text-red-300 hover:text-red-600 transition-colors"
+                                title="Eliminar"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-4 w-4"
+                                  viewBox="0 0 20 20"
+                                  fill="currentColor"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 1 0 002 2h8a2 1 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          ))
+                      ) : (
+                        <p className="text-center text-xs text-orange-400 italic py-2">
+                          Sin historial (usa 200W por defecto)
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Footer Info */}
